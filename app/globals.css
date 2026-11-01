@@ -1006,3 +1006,928 @@ select {
   background: var(--line);
   border-radius: 3px;
 }
+/* Syrka reference branding and neutral black surfaces. */
+:root {
+  --radius-panel: 22px;
+  --radius-control: 11px;
+  --accent: #345d45;
+  --accent-soft: #e8eee8;
+  --muted: #667268;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --side: #050505;
+  --surface: #0c0c0c;
+  --hover: #171717;
+  --line: #272727;
+  --text: #f3f3f1;
+  --muted: #a5a5a1;
+  --accent: #41634e;
+  --accent-soft: #19251d;
+}
+[data-theme="dark"] .mailbox,
+[data-theme="dark"] .modal {
+  background: #0c0c0c;
+}
+[data-theme="dark"] .toolbar,
+[data-theme="dark"] .conversation-message {
+  background: #0c0c0c;
+}
+[data-theme="dark"] .list-heading,
+[data-theme="dark"] .reader-toolbar,
+[data-theme="dark"] .ai-output,
+[data-theme="dark"] .configuration-note {
+  background: #111;
+}
+[data-theme="dark"] .sender-avatar,
+[data-theme="dark"] .avatar {
+  background: #222;
+  color: #ddd;
+}
+[data-theme="dark"] nav button {
+  color: #b5b5af;
+}
+[data-theme="dark"] nav button.active,
+[data-theme="dark"] .tab.selected {
+  color: #d5e8d9;
+}
+[data-theme="dark"] .empty-tag,
+[data-theme="dark"] .provider-names {
+  color: #a2a29c;
+}
+[data-theme="dark"] .outline {
+  color: #deded9;
+}
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background: #141414;
+  color: #f2f2ef;
+}
+.syrka-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.syrka-brand > svg {
+  width: 39px;
+  height: 21px;
+  flex-shrink: 0;
+}
+.brand-divider {
+  height: 26px;
+  width: 1px;
+  background: var(--text);
+  opacity: 0.3;
+}
+.syrka-wordmark {
+  font-family: Arial, sans-serif;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: 5px;
+  line-height: 1;
+}
+.syrka-brand .brand-mail {
+  font-size: 12px;
+  letter-spacing: 0;
+  margin-left: -6px;
+  margin-top: 3px;
+}
+.brand {
+  padding-left: 5px;
+  letter-spacing: 0;
+}
+.demo-entry {
+  margin: 15px auto 0;
+  display: flex;
+}
+.app-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.configuration-note {
+  background: var(--side);
+  border: 1px solid var(--line);
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.connection-list > div {
+  flex-wrap: wrap;
+}
+.provider-status {
+  font-size: 10px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.provider-blocker {
+  flex-basis: 100%;
+  font-size: 11px !important;
+  margin: 0 !important;
+  line-height: 1.6;
+}
+.auth-callback {
+  margin: 0 auto;
+  max-width: 640px;
+  width: 100%;
+  padding: 60px 24px;
+}
+.auth-callback .mailbox {
+  padding: 32px;
+  margin-top: 40px;
+  min-height: 0;
+}
+.auth-callback p {
+  line-height: 1.8;
+}
+.auth-callback .syrka-brand {
+  margin-bottom: 20px;
+}
+.demo-shell main {
+  padding: 0 35px 30px;
+}
+.demo-shell .sidebar {
+  padding-top: 26px;
+}
+.demo-shell .workspace {
+  margin: 25px 4px 21px;
+}
+.demo-shell .compose {
+  min-height: 43px;
+  font-size: 12px;
+  padding: 11px 14px;
+  gap: 10px;
+}
+.demo-shell .compose kbd {
+  margin-left: auto;
+  border-color: #ffffff40;
+  font-size: 10px;
+  opacity: 0.7;
+}
+.demo-shell nav button {
+  font-size: 12px;
+  padding: 9px 13px;
+  gap: 12px;
+  min-height: 35px;
+}
+.demo-shell nav button > span {
+  flex: 1;
+}
+.demo-shell .nav-label {
+  margin: 24px 13px 11px;
+}
+.demo-shell nav .nav-label {
+  margin: 22px 13px 10px;
+}
+.demo-shell header {
+  height: 75px;
+}
+.demo-shell .page-heading {
+  padding: 27px 0 25px;
+}
+.demo-shell h1 {
+  font-size: 36px;
+}
+.demo-local {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  padding: 20px 9px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.demo-pill {
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+[data-theme="dark"] .demo-pill {
+  color: #bdd3c2;
+}
+.demo-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.demo-banner strong {
+  color: var(--text);
+  font-weight: 550;
+}
+.demo-banner button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--accent);
+}
+[data-theme="dark"] .demo-banner button {
+  color: #bcd1c1;
+}
+.header-symbol {
+  display: none;
+  width: 27px;
+  height: 17px;
+}
+.header-avatar {
+  font-size: 11px;
+  width: 30px;
+  height: 30px;
+}
+.demo-shell .header-right {
+  gap: 16px;
+}
+.demo-mailbox {
+  min-height: 580px;
+}
+.demo-shell .toolbar {
+  min-height: 78px;
+  height: auto;
+  padding: 15px 22px;
+  gap: 20px;
+}
+.demo-shell .search {
+  flex: 1;
+}
+.demo-shell .search input {
+  font-size: 12px;
+  width: 100%;
+  min-width: 160px;
+}
+.demo-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.demo-filters select {
+  max-width: 145px;
+  font-size: 11px;
+  min-height: 34px;
+}
+.demo-filters .outline {
+  min-height: 34px;
+}
+.filter-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.demo-mail-content.reading {
+  display: grid;
+  grid-template-columns: minmax(260px, 37%) minmax(0, 1fr);
+}
+.demo-mail-content.reading .demo-list {
+  border-right: 1px solid var(--line);
+  max-height: 810px;
+  overflow: auto;
+}
+.demo-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 0 12px;
+  gap: 3px;
+  transition: background 0.15s;
+}
+.demo-row:hover {
+  background: var(--hover);
+}
+.demo-row.unread {
+  background: var(--bg);
+}
+.demo-row.row-selected {
+  background: var(--accent-soft);
+}
+.star-button {
+  padding: 8px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.star-button.is-starred {
+  color: #b58a36;
+}
+[data-theme="dark"] .star-button.is-starred {
+  color: #e2bb6a;
+}
+.demo-open-thread {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 19px 8px;
+}
+.demo-open-thread > .sender-avatar {
+  font-size: 11px;
+  width: 37px;
+  height: 37px;
+}
+.demo-open-thread .row-content {
+  flex: 1;
+  gap: 6px;
+}
+.sender-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.sender-line strong {
+  font-size: 12px;
+  font-weight: 450;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.unread .sender-line strong,
+.unread .row-subject {
+  font-weight: 650;
+}
+.sender-line time {
+  font-size: 10px;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.thread-count {
+  font-size: 9px;
+  color: var(--muted);
+}
+.demo-open-thread .row-subject {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.demo-open-thread .row-content small {
+  font-size: 11px;
+  max-width: 100%;
+  width: 100%;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--side);
+  padding: 4px 7px;
+  border-radius: 5px;
+  font-size: 9px !important;
+  color: var(--muted);
+  line-height: 1.2;
+}
+.category-academic {
+  background: #e8efe8;
+  color: #4b7056;
+}
+.category-applications {
+  background: #f7efdf;
+  color: #8b6b32;
+}
+.category-work {
+  background: #e9edf2;
+  color: #566c84;
+}
+.category-administration {
+  background: #eeeaf2;
+  color: #7b678e;
+}
+[data-theme="dark"] .category-academic {
+  background: #19251d;
+  color: #b0cdb7;
+}
+[data-theme="dark"] .category-applications {
+  background: #2c2418;
+  color: #d9be8e;
+}
+[data-theme="dark"] .category-work {
+  background: #1b222b;
+  color: #b3c1d3;
+}
+[data-theme="dark"] .category-administration {
+  background: #28212d;
+  color: #cab9d7;
+}
+.unread-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #64836d;
+  flex-shrink: 0;
+}
+.demo-reader {
+  min-width: 0;
+  background: var(--surface);
+}
+.reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 13px;
+  background: var(--bg);
+  flex-wrap: wrap;
+}
+.reader-toolbar .outline {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 6px 9px;
+}
+.reader-title {
+  padding: 26px 25px 15px;
+}
+.reader-title h2 {
+  font-size: 24px;
+  line-height: 1.4;
+  letter-spacing: -0.6px;
+  margin: 13px 0 0;
+}
+.conversation-message {
+  padding: 23px 25px;
+  border-top: 1px solid var(--line);
+}
+.message-sender {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 17px;
+}
+.message-sender strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+.message-sender small {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  margin-top: 4px;
+}
+.message-sender time {
+  font-size: 9px;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.message-sender .sender-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 10px;
+}
+.conversation-message pre,
+.sample-preview,
+.demo-reader .ai-output pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    12px/1.9 Arial,
+    sans-serif;
+  color: var(--text);
+}
+.conversation-message summary {
+  font-size: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  margin: 8px 0 17px;
+}
+.attachment-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 20px;
+  text-align: left;
+  max-width: 100%;
+}
+.attachment-card strong {
+  font-size: 11px;
+}
+.attachment-card small {
+  display: block;
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.attachment-card > svg:last-child {
+  margin-left: 12px;
+}
+.reader-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 23px 25px;
+  border-top: 1px solid var(--line);
+}
+.demo-reader .ai-output {
+  margin: 0 24px 25px;
+}
+.application-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.scheduled-status {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+  padding-top: 15px;
+}
+.scheduled-status button {
+  margin-left: 9px;
+}
+.demo-actions-view {
+  padding: 27px;
+}
+.section-intro {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+.section-intro h2 {
+  font-size: 21px;
+  margin: 0 0 8px;
+}
+.section-intro p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+}
+.demo-actions-view .action-card {
+  max-width: 720px;
+}
+.action-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.action-card h3 {
+  font-size: 16px;
+  font-weight: 550;
+  margin: 18px 0;
+}
+.action-card .muted {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.state-pill {
+  border-radius: 20px;
+  padding: 4px 9px;
+  font-size: 9px;
+  background: var(--side);
+  color: var(--muted);
+}
+.state-pill.approved,
+.state-pill.completed {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+[data-theme="dark"] .state-pill.approved,
+[data-theme="dark"] .state-pill.completed {
+  color: #b7d2bd;
+}
+.demo-compose-notice {
+  font-size: 11px;
+  padding: 11px;
+  background: var(--accent-soft);
+  color: var(--text);
+  border-radius: 9px;
+  margin: 18px 0;
+}
+.sample-preview {
+  padding: 15px;
+  background: var(--bg);
+  border-radius: 10px;
+  max-height: 350px;
+  overflow: auto;
+}
+.demo-shell .modal {
+  width: 610px;
+}
+.mobile-nav-toggle,
+.mobile-nav-close {
+  display: none;
+}
+.demo-shell .setting-row {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 17px;
+}
+.demo-shell .mailbox-footer {
+  position: relative;
+}
+.demo-shell .demo-open-thread:focus-visible {
+  outline-offset: -3px;
+}
+@media (max-width: 1150px) {
+  .demo-shell main {
+    padding: 0 22px 25px;
+  }
+  .demo-filters select {
+    max-width: 120px;
+  }
+  .demo-shell .toolbar {
+    flex-wrap: wrap;
+    gap: 13px;
+  }
+  .demo-shell .search {
+    flex-basis: 100%;
+  }
+  .demo-filters {
+    width: 100%;
+  }
+  .demo-mail-content.reading {
+    grid-template-columns: minmax(225px, 36%) minmax(0, 1fr);
+  }
+  .reading .demo-open-thread > .sender-avatar {
+    display: none;
+  }
+  .message-sender time {
+    white-space: normal;
+    text-align: right;
+  }
+  .syrka-wordmark {
+    font-size: 16px;
+    letter-spacing: 4px;
+  }
+  .syrka-brand {
+    gap: 9px;
+  }
+  .syrka-brand > svg {
+    width: 33px;
+  }
+  .demo-shell .sidebar {
+    width: 230px;
+  }
+  .demo-shell main {
+    margin-left: 230px;
+    width: calc(100% - 230px);
+  }
+}
+@media (max-width: 850px) {
+  .demo-shell .sidebar {
+    width: 206px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .demo-shell main {
+    margin-left: 206px;
+    width: calc(100% - 206px);
+    padding: 0 17px 25px;
+  }
+  .demo-shell .brand-mail,
+  .demo-banner button,
+  .header-avatar {
+    display: none;
+  }
+  .demo-mail-content.reading {
+    display: block;
+  }
+  .demo-mail-content.reading .demo-list {
+    display: none;
+  }
+  .demo-banner {
+    font-size: 10px;
+  }
+  .demo-shell .header-right {
+    gap: 8px;
+  }
+  .demo-shell .page-heading h1 {
+    font-size: 31px;
+  }
+  .demo-shell .page-heading .outline {
+    padding: 8px;
+  }
+  .demo-shell .toolbar {
+    padding: 15px;
+  }
+  .demo-shell .search input {
+    font-size: 11px;
+  }
+  .reader-title,
+  .conversation-message {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+@media (max-width: 700px) {
+  .syrka-brand .brand-divider,
+  .syrka-brand .syrka-wordmark,
+  .syrka-brand .brand-mail {
+    display: none;
+  }
+  .brand .syrka-brand > svg {
+    width: 34px;
+    height: 22px;
+  }
+  .demo-shell .sidebar {
+    display: none;
+    position: fixed;
+    width: 255px;
+    padding: 24px 17px 0;
+    z-index: 3;
+    background: var(--side);
+    box-shadow: 0 0 0 100vmax #0008;
+  }
+  .demo-shell .sidebar.nav-open {
+    display: flex;
+  }
+  .demo-shell .sidebar .syrka-wordmark,
+  .demo-shell .sidebar .brand-divider,
+  .demo-shell .sidebar .brand-mail {
+    display: block;
+  }
+  .demo-shell .sidebar .brand {
+    justify-content: flex-start;
+  }
+  .demo-shell .sidebar .workspace,
+  .demo-shell .sidebar .compose,
+  .demo-shell .sidebar .nav-label,
+  .demo-shell .sidebar footer {
+    display: flex;
+  }
+  .demo-shell .sidebar .nav-label {
+    font-size: 9px;
+  }
+  .demo-shell .sidebar nav {
+    margin-top: 0;
+    max-height: none;
+    min-height: 120px;
+  }
+  .demo-shell .sidebar nav button {
+    font-size: 12px;
+    gap: 12px;
+    padding: 8px 12px;
+  }
+  .demo-shell .sidebar nav button b {
+    display: block;
+  }
+  .demo-shell .sidebar footer > button {
+    font-size: 11px;
+  }
+  .demo-shell .sidebar footer {
+    display: block;
+  }
+  .mobile-nav-toggle,
+  .mobile-nav-close {
+    display: grid;
+  }
+  .mobile-nav-close {
+    margin-left: auto;
+  }
+  .header-symbol {
+    display: block;
+  }
+  .demo-shell main {
+    margin-left: 0;
+    width: 100%;
+    padding: 0 15px 90px;
+  }
+  .demo-shell header {
+    height: 65px;
+  }
+  .demo-shell .breadcrumb {
+    gap: 8px;
+  }
+  .demo-shell .breadcrumb > strong {
+    display: none;
+  }
+  .demo-shell .header-right {
+    gap: 4px;
+  }
+  .demo-pill {
+    font-size: 9px;
+    padding: 5px 8px;
+  }
+  .demo-shell .page-heading {
+    padding: 23px 0;
+  }
+  .demo-banner {
+    font-size: 10px;
+    padding: 11px 0;
+  }
+  .demo-shell .page-heading p {
+    font-size: 11px;
+    line-height: 1.6;
+    max-width: 230px;
+  }
+  .demo-shell .eyebrow {
+    font-size: 8px;
+    letter-spacing: 1.4px;
+  }
+  .demo-mailbox {
+    min-height: 550px;
+    border-radius: 18px;
+  }
+  .demo-filters {
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+  .demo-filters select {
+    font-size: 10px;
+    flex: 1;
+    max-width: none;
+    min-width: 95px;
+  }
+  .demo-filters .outline {
+    font-size: 10px;
+  }
+  .demo-open-thread {
+    padding: 18px 3px;
+    gap: 10px;
+  }
+  .demo-open-thread > .sender-avatar {
+    display: none;
+  }
+  .demo-row {
+    padding: 0 9px;
+  }
+  .star-button {
+    padding: 6px;
+  }
+  .sender-line strong {
+    font-size: 12px;
+  }
+  .demo-open-thread .row-content small {
+    max-width: 100%;
+  }
+  .reader-title h2 {
+    font-size: 22px;
+  }
+  .message-sender time {
+    max-width: 65px;
+  }
+  .demo-shell .modal {
+    max-height: 91vh;
+  }
+  .demo-shell .mobile-compose {
+    z-index: 2;
+  }
+  .demo-actions-view {
+    padding: 20px 16px;
+  }
+  .section-intro h2 {
+    font-size: 18px;
+  }
+  .demo-shell .mailbox-footer {
+    padding: 14px;
+    font-size: 8px;
+  }
+  .syrka-brand .brand-mail {
+    margin-left: 0;
+  }
+}
+.outline {
+  outline-style: none;
+}
+.outline:focus-visible {
+  outline: 2px solid #789c6b;
+  outline-offset: 3px;
+}
+[data-theme="dark"] .outline,
+[data-theme="dark"] .attachment-card {
+  background: #111;
+  border-color: #333;
+}
+[data-theme="dark"] .demo-shell .search input {
+  background: transparent;
+}
+.ai-disabled-note {
+  padding: 0 27px 20px;
+  font-size: 11px;
+  line-height: 1.7;
+}

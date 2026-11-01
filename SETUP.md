@@ -64,3 +64,13 @@ Follow the official get-started instructions once reachable. Do not use an uncla
 6. Deploy with the supported tooling, poll until READY, then request the actual Preview URL and verify the application response and browser flow. A deployment ID, queued build or printed URL alone is not success.
 
 No Vercel project, Git integration, deployment or public Preview has been created in this session. Automatic GitHub previews are pending authenticated project access. Preview protection policy should be checked before exposing private data.
+
+## UI refinement and authentication callback
+
+The interactive Demo Mailbox is available through the visible demo entry or `/?demo=1`. It works without any Supabase/OAuth/AI configuration. Its browser-local storage keys are `syrka.mail.demo.v1` and `syrka-demo-mode`; resetting it does not affect live accounts. Scheduled messages are simulated on open and while the page runs, not by a background delivery service.
+
+Authentication now uses an explicit PKCE callback at `/auth/callback`. Add `${APP_URL}/auth/callback` for each specifically approved deployment to the dedicated Supabase project's authorized Redirect URLs and set the intended Site URL. Open ordinary PKCE magic links in the browser that requested them. If the dedicated project's email template uses token_hash links, the callback also supports `token_hash` with `type=email` or `type=magiclink`; configure the link to the approved callback origin. Never include service-role keys in templates or browser configuration.
+
+`/api/config` returns configuration presence/status and the intentionally public Supabase URL/anon key. It never returns provider secrets, encryption keys or the service-role key. This avoids hiding missing settings behind silent connection buttons. Actual auth delivery still requires the dedicated project, enabled email auth, approved redirect URLs, usable sender configuration and an authorized real-email test. The mock browser tests do not send real email.
+
+The current task could not inspect Vercel's stored project settings: the public deployment hostname and official documentation were blocked by the runtime proxy; official CLI whoami reported Logged out. No existing project was modified or replaced. Verify automatic Preview deployment on the new refinement branch once owner-account access becomes available. Do not push refinements onto a branch that Vercel treats as production.

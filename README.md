@@ -2,7 +2,7 @@
 
 AI-assisted email and a source-linked action workspace. Built with Next.js App Router, React, strict TypeScript, Tailwind, Supabase and server-side mail adapters.
 
-**Implementation in progress. This is not a production-ready email service.** The current UI contains no fabricated inbox messages. Live providers, deployment and database have not been configured or verified in this environment.
+**Implementation in progress. This is not a production-ready email service.** The live UI contains no fabricated inbox messages. An optional, clearly labelled browser-local Demo Mailbox now includes 52 fictional messages and interactive mail workflows. Live providers, deployment and database have not been configured or verified in this environment.
 
 ## Run
 
@@ -15,7 +15,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Missing credentials do not prevent exploring the disconnected UI. They do prevent authenticated mail operations. See [SETUP.md](SETUP.md) before enabling services.
+Use the Demo Mailbox entry or `/?demo=1` to explore mail interactions without credentials. Missing credentials do not prevent exploring the disconnected live UI. They do prevent authenticated mail operations. See [SETUP.md](SETUP.md) before enabling services.
 
 ```sh
 npm run typecheck
@@ -40,3 +40,5 @@ Browser tests use system Chromium by default. Override the executable in playwri
 - `docs/INTEGRATIONS.md`: ecosystem contracts and provider limitations.
 
 Email is rendered as plain text. Remote email HTML and remote images are not loaded. No SMTP hosting, DNS changes or production domain changes are performed.
+
+See [the refinement report](docs/REFINEMENT.md) for demo behavior, authentication changes and current deployment blockers.

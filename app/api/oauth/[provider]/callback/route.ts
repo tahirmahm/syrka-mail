@@ -71,30 +71,51 @@ export async function GET(
       accountId = d.id || address;
     }
     const db = database();
-    const { error } = await db
-      .from("mail_connections")
-      .upsert(
-        {
-          user_id: saved.user,
-          provider,
-          address,
-          account_id: accountId,
-          api_domain: domain,
-          access_token: encrypt(t.access_token),
-          refresh_token: t.refresh_token ? encrypt(t.refresh_token) : null,
-          expires_at: new Date(
-            Date.now() + Number(t.expires_in || 3600) * 1000,
-          ).toISOString(),
-        },
-        { onConflict: "user_id,provider,address" },
-      );
+    const { error } = await db.from("mail_connections").upsert(
+      {
+        user_id: saved.user,
+        provider,
+        address,
+        account_id: accountId,
+        api_domain: domain,
+        access_token: encrypt(t.access_token),
+        refresh_token: t.refresh_token ? encrypt(t.refresh_token) : null,
+        expires_at: new Date(
+          Date.now() + Number(t.expires_in || 3600) * 1000,
+        ).toISOString(),
+      },
+      { onConflict: "user_id,provider,address" },
+    );
     if (error) throw new Error("Unable to save account connection");
     const response = NextResponse.redirect(
       new URL("/?connected=1", cfg.redirect),
     );
-    response.cookies.delete("syrka_oauth");
+    response.cookies.set("syrka_oauth", "", {
+      path: "/api/oauth",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 0,
+    });
     return response;
   } catch (e) {
+    if (process.env.APP_URL) {
+      const url = new URL("/", process.env.APP_URL);
+      url.searchParams.set(
+        "connection_error",
+        e instanceof Error ? e.message : "Provider authorization failed",
+      );
+      url.searchParams.set("connection_provider", (await params).provider);
+      const response = NextResponse.redirect(url);
+      response.cookies.set("syrka_oauth", "", {
+        path: "/api/oauth",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 0,
+      });
+      return response;
+    }
     return failure(e);
   }
 }
