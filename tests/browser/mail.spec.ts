@@ -53,7 +53,7 @@ test("mail and AI cannot be called without configured authentication", async ({
     const r = await request.get(path);
     expect(r.ok()).toBeFalsy();
     const data = await r.json();
-    expect(data.error).toMatch(/Supabase is not configured|Sign in required/);
+    expect(data.error).toMatch(/Supabase.*not configured|Sign in required/);
   }
   const r = await request.post("/api/ai", {
     data: { text: "untrusted input", action: "reply", consent: false },

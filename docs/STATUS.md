@@ -1,3 +1,5 @@
+> Current status: [BACKEND.md](BACKEND.md) and [WORKFLOWS.md](WORKFLOWS.md) supersede older foundation/refinement observations below. Dedicated public configuration is prepared locally; remote activation is pending access.
+
 > Updated by the UI/demo refinement: see [REFINEMENT.md](REFINEMENT.md) for current interactive-demo and authentication implementation. The table below primarily tracks live-service capabilities.
 
 # Implementation status

@@ -8,23 +8,33 @@
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "backend:check": "node scripts/check-backend.mjs",
+    "db:dry-run": "node scripts/mail-db.mjs --dry-run",
+    "db:push": "node scripts/mail-db.mjs",
+    "backend:live": "node scripts/verify-live-backend.mjs",
+    "auth:configure": "node scripts/configure-mail-auth.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.80.0",
     "@tailwindcss/postcss": "^4.3.3",
+    "dompurify": "^3.4.17",
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "sanitize-html": "^2.18.1",
     "tailwindcss": "^4.3.3",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.14",
     "@playwright/test": "^1.64.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/sanitize-html": "^2.16.2",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^5.9.0"

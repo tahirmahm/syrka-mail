@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./workflows.css";
 export const metadata = {
   title: "Syrka Mail",
   description: "A considered space for your conversations.",

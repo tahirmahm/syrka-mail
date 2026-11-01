@@ -22,6 +22,7 @@ export interface DemoMessage {
   bcc?: string[];
   date: string;
   body: string;
+  html?: string;
   attachments: DemoAttachment[];
 }
 export interface DemoThread {
@@ -282,7 +283,7 @@ export function seedDemo(now = new Date()): DemoState {
       messages,
     };
   });
-  return {
+  return extendWorkflowMail({
     version: 1,
     threads,
     commitments: [
@@ -292,7 +293,7 @@ export function seedDemo(now = new Date()): DemoState {
         title: "Review thesis outline",
         destination: "Dashboard",
         state: "proposed",
-        due: new Date(now.getTime() + 3 * 86400000).toISOString(),
+        due: "",
         excerpt:
           "Please revise the research question and send a two-page outline by Friday.",
       },
@@ -312,7 +313,7 @@ export function seedDemo(now = new Date()): DemoState {
       "thread-13": "Exploring",
       "thread-19": "Review",
     },
-  };
+  });
 }
 export function updateThread(
   state: DemoState,
@@ -403,6 +404,7 @@ const messageSchema = z.object({
   bcc: z.array(z.string()).optional(),
   date: z.string(),
   body: z.string().max(100000),
+  html: z.string().max(200000).optional(),
   attachments: z.array(attachmentSchema),
 });
 const threadSchema = z.object({
@@ -455,8 +457,70 @@ export function restoreDemo(value: string | null): DemoState {
   if (!value) return seedDemo();
   try {
     const parsed = demoSchema.safeParse(JSON.parse(value));
-    return parsed.success ? runScheduled(parsed.data) : seedDemo();
+    return parsed.success
+      ? extendWorkflowMail(runScheduled(parsed.data))
+      : seedDemo();
   } catch {
     return seedDemo();
   }
+}
+
+function extendWorkflowMail(state: DemoState): DemoState {
+  const seeds: [string, string, Category, string, string][] = [
+    [
+      "workflow-assignment",
+      "POL201 assignment reminder",
+      "Academic",
+      "Dr. Maya Chen",
+      "For POL201, revise your research question and prepare the two-page outline. The word Friday needs a confirmed date before a calendar deadline is added.",
+    ],
+    [
+      "workflow-exam",
+      "Examination announcement — Political Theory",
+      "Academic",
+      "Course Administration",
+      "The Political Theory examination is on 5 November 2026 at 10:00 CET in room B204. This is the fictional POL201 examination timetable.",
+    ],
+    [
+      "workflow-admissions",
+      "Graduate admissions — supporting documents",
+      "Applications",
+      "Northbridge University Admissions",
+      "Your graduate application is being prepared. Please supply your transcript and statement of purpose by 20 November 2026. This is not an admission offer.",
+    ],
+    [
+      "workflow-documents",
+      "Research placement — documents requested",
+      "Applications",
+      "Policy Institute Recruitment",
+      "Please submit your writing sample and enrolment certificate by 20 November 2026. We are assessing your application; no offer has been made.",
+    ],
+  ];
+  const missing = seeds
+    .filter(([id]) => !state.threads.some((t) => t.id === id))
+    .map(([id, subject, category, name, body]): DemoThread => ({
+      id,
+      subject,
+      category,
+      folder: "Inbox",
+      unread: true,
+      starred: false,
+      messages: [
+        {
+          id: "message-" + id,
+          from: name + " <office@mail.example>",
+          to: [DEMO_IDENTITY],
+          cc: [],
+          date: "2026-11-01T06:00:00Z",
+          body:
+            "Hello Alex,\n\n" +
+            body +
+            "\n\n" +
+            name +
+            "\n\n[Fictional Syrka workflow example]",
+          attachments: [],
+        },
+      ],
+    }));
+  return { ...state, threads: [...state.threads, ...missing] };
 }

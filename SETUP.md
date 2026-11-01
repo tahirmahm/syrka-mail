@@ -1,76 +1,63 @@
-# External setup and deployment
+# Syrka Mail setup
 
-## Current execution-environment blockers
+Current backend target: **Syrka Mail**, `grlbuiemvkmaflogryta`, https://grlbuiemvkmaflogryta.supabase.co.
 
-- Official `https://vercel.com/get-started.md` fetch returned HTTP 403 from the CONNECT proxy after retry. The observed running policy still had no custom Vercel host grants. The saved draft includes vercel.com; approved desired settings and enforced runtime settings are separate.
-- Official Vercel CLI `whoami` returned **Logged out**. No Vercel integration tool, VERCEL_TOKEN binding, token variable or standard CLI auth file was available. Documentation access is not deployment authentication.
-- A draft now requests `api.vercel.com` access and a personal `VERCEL_TOKEN` binding scoped to that API. Enter credentials securely in environment settings, never in chat. Saving a draft does not apply or publish it.
-- No dedicated Supabase URL, anon key, service key, provider client credentials or Qwen key was present. No real mail request or model inference has been made.
+Read [BACKEND.md](docs/BACKEND.md) for exact configuration, migration order, security tests and live-access blockers. Read [WORKFLOWS.md](docs/WORKFLOWS.md) for inline replies, calendar and contextual demo capabilities.
 
-Do not repeatedly retry unchanged blocked requests. After a meaningful policy or authentication change, retry the affected operation and inspect the actual response.
+## Development
 
-## Dedicated Supabase
+```sh
+npm ci
+test -f .env.local || cp .env.example .env.local
+npm run backend:check
+npm run dev
+```
 
-1. Select/create the separately authorized Syrka Mail project. Do not reuse another Syrka database without explicit validation.
-2. Apply `supabase/schema.sql` once as the initial migration. It creates connections, private drafts, preferences, source-linked action proposals, delivery receipts, rate-limit buckets and a future queue contract.
-3. Configure email-link authentication, the approved app Site URL, and exact permitted Preview callback origins. Configure a reliable authentication-email sender.
-4. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the application environment. Set SUPABASE_SERVICE_ROLE_KEY server-side only.
-5. Set TOKEN_ENCRYPTION_KEY to a securely generated 32-byte hex key. Keep it in a secrets manager; it is required to decrypt provider credentials. Rotation requires decrypt/re-encrypt migration before removing the old key.
-6. Check RLS using two separate test users. The current environment has no database to execute those integration tests against.
+Preserve an existing `.env.local`, especially TOKEN_ENCRYPTION_KEY. The current machine already has the supplied public project configuration in that ignored file and a provisional local development encryption key. No private value belongs in source control or chat. A development key must not replace an existing production key protecting stored credentials.
 
-The initial client uses Supabase browser sessions and bearer authorization. Migrating application login to HttpOnly server sessions is outstanding before production. Provider OAuth cookies are already HttpOnly, authenticated-encrypted, state-bound, short-lived and Secure in production.
+The app remains explorable without live credentials through Demo Mailbox or `/?demo=1`. Demo storage and actions stay inside the browser. Signing in does not import fictional mail, courses, applications, tasks or events into the real backend.
 
-## Provider registration
+## Verification
 
-Set APP_URL to the exact authorized app origin. Production-mode execution requires HTTPS.
+```sh
+npm test
+npm run typecheck
+npm run build
+npm run test:browser
+```
 
-Register redirect URIs:
+The suite includes actual local PostgreSQL migration/RLS tests, unit/provider mocks and browser interaction tests. Supabase/Vercel live checks are a separate acceptance stage. CLI `db:dry-run` stops before SQL if it is not linked to the exact dedicated project.
 
-- `${APP_URL}/api/oauth/zoho/callback`
-- `${APP_URL}/api/oauth/microsoft/callback`
+## Public and server configuration
+
+Use NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, retaining ANON_KEY as a fallback for older configuration. The installed SDK supports the supplied publishable format. SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) is server-only. The application rejects unrelated project URLs and accidental server keys in public fields.
+
+The official cookie helper handles browser PKCE sessions. Server APIs validate users with Supabase Auth. Drafts/preferences use user JWTs and RLS; privileged provider/receipt/action operations retain scoped server checks. Auth URLs must allow the approved stable/Preview `/auth/callback` origins. Real email delivery, remote migrations, advisors and actual Vercel variables are not verified in this environment yet.
+
+## Providers
+
+APP_URL must be the exact approved deployment origin; production-mode provider registration requires HTTPS. Register these exact OAuth redirects on each authorized provider:
+
 - `${APP_URL}/api/oauth/gmail/callback`
+- `${APP_URL}/api/oauth/microsoft/callback`
+- `${APP_URL}/api/oauth/zoho/callback`
 
-Register provider applications; populate the corresponding *_CLIENT_ID and *_CLIENT_SECRET server variables. Connect accounts from Settings only after signing in. Tokens are encrypted before server-only storage, automatically refreshed when expired, and never returned to the browser. Multiple addresses are stored separately and selectable in the header. Disconnection removes local credentials; the user must additionally revoke the grant at the provider. Provider-specific revocation calls remain outstanding.
+Set the matching *_CLIENT_ID and *_CLIENT_SECRET securely. Gmail additionally requires GMAIL_ENABLED=true only after consent/test-user/scope approval. Microsoft uses delegated Mail.ReadWrite, Mail.Send, User.Read and offline_access; respect university administrator consent and conditional access. No application-wide mailbox administration is requested.
 
-### Zoho pilot
+Zoho must use matching approved regional ZOHO_ACCOUNTS_URL and ZOHO_MAIL_URL. The adapter supports the configured .com/.eu/.in/.com.au regions. Verify current API entitlement and licensed test-organization access before real activation. Native Zoho reply threading remains gated; no unsupported operation is silently simulated in live mode.
 
-Choose matching regional ZOHO_ACCOUNTS_URL and ZOHO_MAIL_URL. The OAuth flow discovers the authorized mailbox and sending identity via the accounts API. Reading and sending are implemented but not verified against a licensed test organization. Complete provider API-entitlement checks before activation.
+Provider tokens are encrypted at rest and refreshed server-side. Disconnect deletes local credentials; provider-side grant revocation remains an additional requirement. No real provider has been connected or tested here. Supplying Supabase configuration does not grant mailbox permissions.
 
-An organization administrator must approve the pilot organization, its licensing and an owned test domain/subdomain. `mail.syrka.co` is only an example and has not been configured. Obtain actual verification, MX, SPF, DKIM and DMARC records from that organization's Zoho console; this application supplies no invented DNS records. Apply only to the separately approved pilot domain. Do not alter existing @syrka.co mail routing. Organization/domain provisioning, aliases, quotas and roster onboarding remain unimplemented and require appropriate partner/API entitlement.
+## Hosted mailbox pilot
 
-### Microsoft
+Use an explicitly approved organization and owned test subdomain. `mail.syrka.co` is an example, not a configured domain. Obtain actual verification/MX/SPF/DKIM/DMARC values from the approved organization's Zoho console. Do not change existing @syrka.co routing. Institutional provisioning, aliases, quotas and commercial partner entitlement remain separate authorized work; no addresses or DNS records have been provisioned.
 
-Register a delegated Microsoft identity application with Mail.ReadWrite, Mail.Send, User.Read and offline_access. University administrators may require consent or prohibit third-party access. Respect conditional access. Do not grant application-wide administrator mailbox access. Test login, refresh, fetch, send and mutations with an authorized test mailbox.
+## Alibaba/Qwen
 
-### Gmail
+AI is off unless the dedicated Mail environment has current verified Free Quota Only entitlement, approved model selection, correct region endpoint and credentials. Each request additionally needs selected-content consent and rate limiting. No paid fallback, inherited Roadmaps credentials, embeddings, OCR or cross-app writes are introduced. Demo suggestions are labelled simulated.
 
-Set GMAIL_ENABLED=true only after consent-screen/test-user/scope approval. The initial adapter requests gmail.modify for read/write/send operations. Confirm the current scope policy, privacy disclosures, deletion controls and any required restricted-scope verification/security assessment before public use. A development OAuth registration is not public authorization.
+## Vercel
 
-## Alibaba / Qwen — no paid fallback
+Use only the existing `syrka-mail` project and `tahirmahm/syrka-mail` Git integration. Current CLI access reports Logged out and the runtime proxy blocks project inspection. Do not create another project, use an unclaimed temporary deployment, modify Syrka domains or deploy --prod.
 
-Live AI is disabled by default, including when a key is present. Validate official current documentation, the actual account's model entitlement and **Free Quota Only** behavior for Syrka Mail. Set QWEN_MODEL explicitly; no candidate model name from the product brief is assumed available. Only after verifying configure QWEN_ENABLED, QWEN_FREE_QUOTA_VERIFIED, verification timestamps and a bounded QWEN_QUOTA_VERIFICATION_EXPIRES_AT. Use the correct region endpoint. Revocation/expiry must turn AI off. The app additionally requires consent for each selected-content request and enforces five requests/minute/user. Account-wide spend/quota telemetry is still required before public rollout; flags alone are not independent evidence of free quota.
-
-No paid fallback, embeddings, reranking or OCR requests are implemented or made. Summaries and reply suggestions are code paths only, not live-verified features.
-
-## Vercel Preview — owner-account access required
-
-Follow the official get-started instructions once reachable. Do not use an unclaimed temporary deployment: it would not establish access to the user's existing account.
-
-1. Authenticate using the supported existing-account integration or official CLI flow. Verify with `vercel whoami`, then list projects within the intended account/team. Do not print credentials.
-2. Reuse exactly one existing `syrka-mail` project if present. Create that single project only if inspection confirms it is absent and project-creation permission is available.
-3. Connect the project to `tahirmahm/syrka-mail` using the authorized GitHub integration. Confirm the GitHub App installation can read that repository.
-4. Configure Next.js, project root `.`, npm lockfile installation and `npm run build`. Add dedicated Preview environment bindings securely. No other Syrka application variables should be copied implicitly.
-5. Use the feature branch for Preview deployments. Do not deploy --prod, change production routing or attach existing Syrka domains. Confirm the repository's production-branch setting before enabling automatic deploys; feature branches should generate Previews.
-6. Deploy with the supported tooling, poll until READY, then request the actual Preview URL and verify the application response and browser flow. A deployment ID, queued build or printed URL alone is not success.
-
-No Vercel project, Git integration, deployment or public Preview has been created in this session. Automatic GitHub previews are pending authenticated project access. Preview protection policy should be checked before exposing private data.
-
-## UI refinement and authentication callback
-
-The interactive Demo Mailbox is available through the visible demo entry or `/?demo=1`. It works without any Supabase/OAuth/AI configuration. Its browser-local storage keys are `syrka.mail.demo.v1` and `syrka-demo-mode`; resetting it does not affect live accounts. Scheduled messages are simulated on open and while the page runs, not by a background delivery service.
-
-Authentication now uses an explicit PKCE callback at `/auth/callback`. Add `${APP_URL}/auth/callback` for each specifically approved deployment to the dedicated Supabase project's authorized Redirect URLs and set the intended Site URL. Open ordinary PKCE magic links in the browser that requested them. If the dedicated project's email template uses token_hash links, the callback also supports `token_hash` with `type=email` or `type=magiclink`; configure the link to the approved callback origin. Never include service-role keys in templates or browser configuration.
-
-`/api/config` returns configuration presence/status and the intentionally public Supabase URL/anon key. It never returns provider secrets, encryption keys or the service-role key. This avoids hiding missing settings behind silent connection buttons. Actual auth delivery still requires the dedicated project, enabled email auth, approved redirect URLs, usable sender configuration and an authorized real-email test. The mock browser tests do not send real email.
-
-The current task could not inspect Vercel's stored project settings: the public deployment hostname and official documentation were blocked by the runtime proxy; official CLI whoami reported Logged out. No existing project was modified or replaced. Verify automatic Preview deployment on the new refinement branch once owner-account access becomes available. Do not push refinements onto a branch that Vercel treats as production.
+After authentication/network access is available, inspect the existing production branch first, set the dedicated public/server bindings for the feature Preview, configure APP_URL and allowed callbacks to the actual origin, then deploy and poll until READY. Verify its actual HTTP/browser URL. A Git push, printed URL, configuration draft or successful local build is not proof of a deployed Preview. Production configuration and production deployment are separate; no automatic promotion is authorized.

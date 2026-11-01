@@ -1,17 +1,17 @@
 import { configurationStatus } from "@/lib/config";
+import { publicSupabaseConfig } from "@/lib/supabase/config";
 export async function GET() {
+  let publicAuth: {
+    url: string;
+    anonKey: string;
+    publishableKey: string;
+  } | null = null;
+  try {
+    const { url, key } = publicSupabaseConfig();
+    publicAuth = { url, anonKey: key, publishableKey: key };
+  } catch {}
   return Response.json(
-    {
-      ...configurationStatus(),
-      publicAuth:
-        process.env.NEXT_PUBLIC_SUPABASE_URL &&
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-          ? {
-              url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-              anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-            }
-          : null,
-    },
-    { headers: { "Cache-Control": "no-store" } },
+    { ...configurationStatus(), publicAuth },
+    { headers: { "Cache-Control": "private, no-store" } },
   );
 }

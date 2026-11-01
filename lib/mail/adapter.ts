@@ -104,6 +104,10 @@ export function createAdapter(c: Connection): MailProviderAdapter {
       );
       return {
         id: m.id,
+        threadId: m.conversationId,
+        internetMessageId: m.internetMessageId,
+        to: (m.toRecipients || []).map((v: any) => v.emailAddress.address),
+        cc: (m.ccRecipients || []).map((v: any) => v.emailAddress.address),
         subject: m.subject,
         from: m.from?.emailAddress?.address || "",
         preview: m.bodyPreview,

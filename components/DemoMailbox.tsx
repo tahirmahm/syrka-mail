@@ -1,4 +1,22 @@
 "use client";
+import InlineReply from "./InlineReply";
+import DOMPurify from "dompurify";
+import MailCalendar from "./workspace/MailCalendar";
+import ContextWorkspace from "./workspace/ContextWorkspace";
+import {
+  stages as applicationStages,
+  seedWorkspace,
+  restoreWorkspace,
+  workspaceForDemo,
+  WORKSPACE_KEY,
+  type WorkspaceState,
+  type Source,
+} from "@/lib/workspace/model";
+import {
+  replyRecipients,
+  type ReplyKind,
+  type ReplyDraft,
+} from "@/lib/mail/reply-types";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Inbox,
@@ -87,13 +105,25 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
     [suggestion, setSuggestion] = useState(""),
     [category, setCategory] = useState("All categories"),
     [sort, setSort] = useState("newest");
+  const [workspace, setWorkspace] = useState<WorkspaceState>(seedWorkspace),
+    [inlineKind, setInlineKind] = useState<ReplyKind | null>(null),
+    [inlineDraft, setInlineDraft] = useState<ReplyDraft | null>(null);
+  const inlineActive = useRef(false);
+  inlineActive.current = !!inlineKind;
   const searchRef = useRef<HTMLInputElement>(null);
   const composeClose = useCallback(() => setCompose(false), []);
   const settingsClose = useCallback(() => setSettings(false), []);
   const attachmentClose = useCallback(() => setAttachment(null), []);
   useEffect(() => {
     try {
-      setState(restoreDemo(localStorage.getItem(DEMO_KEY)));
+      const mail = restoreDemo(localStorage.getItem(DEMO_KEY));
+      setState(mail);
+      setWorkspace(
+        workspaceForDemo(
+          localStorage.getItem(WORKSPACE_KEY),
+          mail.applicationStates,
+        ),
+      );
       setDark(localStorage.getItem("syrka-theme") === "dark");
     } catch {
       setNotice(
@@ -113,6 +143,14 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
     }
   }, [state, ready]);
   useEffect(() => {
+    if (ready)
+      try {
+        localStorage.setItem(WORKSPACE_KEY, JSON.stringify(workspace));
+      } catch {
+        setNotice("Workspace demo storage is unavailable.");
+      }
+  }, [workspace, ready]);
+  useEffect(() => {
     if (!ready) return;
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     try {
@@ -127,8 +165,12 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
     function keys(e: KeyboardEvent) {
       if (
         e.key === "Escape" &&
-        !(e.target as HTMLElement)?.closest('[role="dialog"]')
+        !(e.target as HTMLElement)?.closest('[role="dialog"],.inline-reply')
       ) {
+        if (inlineActive.current) {
+          setInlineKind(null);
+          return;
+        }
         setSelectedId(null);
         setMobileNav(false);
       }
@@ -148,6 +190,8 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
     setState((s) => updateThread(s, id, changes));
   }
   function navigate(name: string) {
+    setInlineKind(null);
+    setInlineDraft(null);
     setFolder(name);
     setSelectedId(null);
     setSuggestion("");
@@ -161,7 +205,208 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
     setScheduleAt("");
     setCompose(true);
   }
+  function openInline(t: DemoThread, kind: ReplyKind) {
+    const source =
+      t.messages.find((m) => m.from !== DEMO_IDENTITY) || t.messages.at(-1)!;
+    const recipients = replyRecipients(source, DEMO_IDENTITY, kind);
+    const id = "inline-draft-" + t.id;
+    const saved = state.threads.find((v) => v.id === id);
+    const m = saved?.messages[0];
+    const d: ReplyDraft = {
+      ...recipients,
+      bcc: "",
+      subject:
+        kind === "forward"
+          ? "Fwd: " + t.subject.replace(/^Fwd: /i, "")
+          : t.subject,
+      text:
+        kind === "forward"
+          ? "\n\n---------- Forwarded fictional message ----------\n" +
+            source.from +
+            "\n" +
+            source.body
+          : "",
+      html: "",
+      attachments: [],
+    };
+    if (m) {
+      d.to = m.to.join(", ");
+      d.cc = m.cc.join(", ");
+      d.bcc = m.bcc?.join(", ") || "";
+      d.text = m.body;
+      d.html = m.html || "";
+      d.attachments = m.attachments.map((a) => ({
+        name: a.name,
+        contentType: a.type as "text/plain" | "text/calendar",
+        dataBase64: btoa(unescape(encodeURIComponent(a.content))),
+      }));
+    }
+    setInlineKind(kind);
+    setInlineDraft(d);
+  }
+  function inlineChanged(d: ReplyDraft) {
+    if (!selectedId) return;
+    setInlineDraft(d);
+    const id = "inline-draft-" + selectedId;
+    setState((s) => ({
+      ...s,
+      threads: [
+        ...s.threads.filter((t) => t.id !== id),
+        {
+          id,
+          subject: d.subject,
+          category:
+            s.threads.find((t) => t.id === selectedId)?.category || "Work",
+          folder: "Drafts",
+          unread: false,
+          starred: false,
+          replyToThreadId: selectedId,
+          messages: [
+            {
+              id: "message-" + id,
+              from: DEMO_IDENTITY,
+              to: d.to
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean),
+              cc: d.cc
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean),
+              bcc: d.bcc
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean),
+              date: new Date().toISOString(),
+              body: d.text,
+              html: d.html,
+              attachments: d.attachments.map((a, i) => ({
+                id: id + "-" + i,
+                name: a.name,
+                type: a.contentType,
+                content: new TextDecoder().decode(
+                  Uint8Array.from(atob(a.dataBase64), (c) => c.charCodeAt(0)),
+                ),
+              })),
+            },
+          ],
+        },
+      ],
+    }));
+  }
+  function inlineSend(d: ReplyDraft) {
+    if (!selectedId) return;
+    const parent = state.threads.find((t) => t.id === selectedId)!;
+    const saved = state.threads.find(
+      (t) => t.id === "inline-draft-" + selectedId,
+    );
+    const message = {
+      ...(saved?.messages[0] || {
+        id: crypto.randomUUID(),
+        from: DEMO_IDENTITY,
+        to: d.to.split(","),
+        cc: [],
+        date: new Date().toISOString(),
+        attachments: [],
+      }),
+      body: d.text,
+      html: d.html,
+    };
+    setState((s) => {
+      const cleaned = s.threads.filter(
+        (t) => t.id !== "inline-draft-" + selectedId,
+      );
+      return {
+        ...s,
+        threads:
+          inlineKind === "forward"
+            ? [
+                {
+                  ...parent,
+                  id: crypto.randomUUID(),
+                  folder: "Sent",
+                  subject: d.subject,
+                  messages: [message],
+                },
+                ...cleaned,
+              ]
+            : cleaned.map((t) =>
+                t.id === selectedId
+                  ? { ...t, messages: [...t.messages, message] }
+                  : t,
+              ),
+      };
+    });
+    setInlineKind(null);
+    setInlineDraft(null);
+    setNotice("Simulated reply sent. No email left this browser.");
+  }
+  function sourceThread(id: string, reply = false) {
+    const t = state.threads.find((t) => t.id === id);
+    if (!t) {
+      setNotice("The source thread is not available in this demo.");
+      return;
+    }
+    setFolder("Inbox");
+    setSelectedId(id);
+    setMobileNav(false);
+    setInlineKind(null);
+    if (reply) openInline(t, "reply");
+  }
+  function proposeCalendar(source: Source, title: string) {
+    if (workspace.events.some((e) => e.source?.threadId === source.threadId)) {
+      navigate("Calendar");
+      setNotice(
+        "This source already has an event. Open it in Calendar to review or edit; no duplicate was created.",
+      );
+      return;
+    }
+
+    const known = workspace.proposals.find(
+      (p) =>
+        p.event.source?.threadId === source.threadId && p.state === "proposed",
+    );
+    if (!known)
+      setWorkspace((s) => ({
+        ...s,
+        proposals: [
+          ...s.proposals,
+          {
+            id: "proposal-" + crypto.randomUUID(),
+            state: "proposed",
+            uncertainty:
+              "Confirm the date, time and timezone. No date is inferred from ambiguous relative wording.",
+            event: {
+              version: "syrka.calendar.event/1",
+              id: "event-" + crypto.randomUUID(),
+              relatedId:
+                workspace.associations.find(
+                  (a) => a.threadId === source.threadId,
+                )?.courseId ||
+                workspace.opportunities.find(
+                  (o) => o.threadId === source.threadId,
+                )?.id,
+              title,
+              kind: "deadline",
+              start: "",
+              end: "",
+              allDay: false,
+              timezone: "Europe/Prague",
+              reminderMinutes: 30,
+              source,
+            },
+          },
+        ],
+      }));
+    navigate("Calendar");
+  }
   function open(t: DemoThread) {
+    if (t.id.startsWith("inline-draft-") && t.replyToThreadId) {
+      sourceThread(t.replyToThreadId, true);
+      return;
+    }
+    setInlineKind(null);
+    setInlineDraft(null);
     if (t.folder === "Drafts") {
       const m = t.messages.at(-1)!;
       setDraft({
@@ -294,38 +539,8 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
   if (sort === "oldest") threads = threads.slice().reverse();
   const latest = selected?.messages.at(-1);
   const modalOpen = compose || settings || !!attachment;
-  function respond(kind: "reply" | "all" | "forward") {
-    if (!selected || !latest) return;
-    const source =
-      selected.messages.find((m) => m.from !== DEMO_IDENTITY) || latest;
-    const email = (v: string) => v.match(/<([^>]+)>/)?.[1] || v;
-    setReplyThreadId(kind === "forward" ? undefined : selected.id);
-    const to = kind === "forward" ? "" : email(source.from);
-    const cc =
-      kind === "all"
-        ? [
-            ...new Set(
-              [...source.to, ...source.cc]
-                .map(email)
-                .filter((v) => v !== "alex@syrka.example" && v !== to),
-            ),
-          ].join(", ")
-        : "";
-    setDraft({
-      to,
-      cc,
-      bcc: "",
-      subject:
-        (kind === "forward" ? "Fwd: " : "Re: ") +
-        selected.subject.replace(/^(Re: |Fwd: )/i, ""),
-      body:
-        kind === "forward"
-          ? `\n\n---------- Forwarded fictional message ----------\nFrom: ${source.from}\nSubject: ${selected.subject}\n\n${source.body}`
-          : "",
-    });
-    setDraftId("demo-" + crypto.randomUUID());
-    setScheduleAt("");
-    setCompose(true);
+  function respond(kind: ReplyKind) {
+    if (selected) openInline(selected, kind);
   }
   function propose() {
     if (!selected || !latest) return;
@@ -442,7 +657,15 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
           </div>
         </footer>
       </aside>
-      <main inert={modalOpen || mobileNav}>
+      <main
+        className={
+          (selected ? "has-open-thread " : "") +
+          (["Calendar", "Academic", "Applications"].includes(folder)
+            ? "task-workspace"
+            : "")
+        }
+        inert={modalOpen || mobileNav}
+      >
         <header>
           <div className="breadcrumb">
             <button
@@ -522,151 +745,159 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
           </div>
         )}
         <div className="mailbox demo-mailbox">
-          <div className="toolbar">
-            <label className="search">
-              <Search size={18} />
-              <input
-                ref={searchRef}
-                placeholder="Search conversations, people, or keywords"
-                aria-label="Search demo messages"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <kbd>⌘ K</kbd>
-            </label>
-            <div className="demo-filters">
-              <button
-                className={"outline " + (unread ? "filter-active" : "")}
-                onClick={() => setUnread(!unread)}
-                aria-pressed={unread}
-              >
-                Unread
-              </button>
-              <select
-                aria-label="Filter category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {[
-                  "All categories",
-                  "Academic",
-                  "Applications",
-                  "Work",
-                  "Administration",
-                  "Personal",
-                  "Newsletters",
-                ].map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-              <select
-                aria-label="Sort messages"
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-              >
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-              </select>
+          {!["Calendar", "Academic", "Applications"].includes(folder) && (
+            <div className="toolbar">
+              <label className="search">
+                <Search size={18} />
+                <input
+                  ref={searchRef}
+                  placeholder="Search conversations, people, or keywords"
+                  aria-label="Search demo messages"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <kbd>⌘ K</kbd>
+              </label>
+              <div className="demo-filters">
+                <button
+                  className={"outline " + (unread ? "filter-active" : "")}
+                  onClick={() => setUnread(!unread)}
+                  aria-pressed={unread}
+                >
+                  Unread
+                </button>
+                <select
+                  aria-label="Filter category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  {[
+                    "All categories",
+                    "Academic",
+                    "Applications",
+                    "Work",
+                    "Administration",
+                    "Personal",
+                    "Newsletters",
+                  ].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Sort messages"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </div>
             </div>
-          </div>
-          {folder === "My Commitments" || folder === "Calendar" ? (
+          )}
+          {folder === "Calendar" ? (
+            <MailCalendar
+              state={workspace}
+              onChange={setWorkspace}
+              onSource={sourceThread}
+            />
+          ) : folder === "Academic" || folder === "Applications" ? (
+            <ContextWorkspace
+              view={folder}
+              state={workspace}
+              onChange={setWorkspace}
+              threads={state.threads}
+              onSource={sourceThread}
+              onCalendar={proposeCalendar}
+              onNotice={setNotice}
+            />
+          ) : folder === "My Commitments" ? (
             <div className="demo-actions-view">
               <div className="section-intro">
                 <ListTodo size={22} />
                 <div>
-                  <h2>
-                    {folder === "Calendar"
-                      ? "Your upcoming demo commitments"
-                      : "Small steps. Meaningful progress."}
-                  </h2>
+                  <h2>Small steps. Meaningful progress.</h2>
                   <p>
                     Every proposal keeps its source. Approval here changes this
                     demo only.
                   </p>
                 </div>
               </div>
-              {state.commitments
-                .filter((c) => folder !== "Calendar" || c.due)
-                .map((c) => (
-                  <article key={c.id} className="action-card">
-                    <div className="action-card-heading">
-                      <span className="category-chip">{c.destination}</span>
-                      <span className={"state-pill " + c.state}>{c.state}</span>
-                    </div>
-                    <h3>{c.title}</h3>
-                    <blockquote>{c.excerpt}</blockquote>
-                    {c.due && (
-                      <p className="muted">
-                        <Clock size={14} /> {new Date(c.due).toLocaleString()}
-                      </p>
-                    )}
-                    <div className="actions">
-                      <button
-                        className="outline"
-                        onClick={() => {
-                          setFolder("Inbox");
-                          setSelectedId(c.threadId);
-                        }}
-                      >
-                        View source email
-                      </button>
-                      {c.state === "proposed" && (
-                        <>
-                          <button
-                            className="primary"
-                            onClick={() =>
-                              setState((s) => ({
-                                ...s,
-                                commitments: s.commitments.map((v) =>
-                                  v.id === c.id
-                                    ? { ...v, state: "approved" }
-                                    : v,
-                                ),
-                              }))
-                            }
-                          >
-                            Approve proposal
-                          </button>
-                          <button
-                            className="outline"
-                            onClick={() =>
-                              setState((s) => ({
-                                ...s,
-                                commitments: s.commitments.map((v) =>
-                                  v.id === c.id
-                                    ? { ...v, state: "dismissed" }
-                                    : v,
-                                ),
-                              }))
-                            }
-                          >
-                            Dismiss
-                          </button>
-                        </>
-                      )}
-                      {c.state === "approved" && (
+              {state.commitments.map((c) => (
+                <article key={c.id} className="action-card">
+                  <div className="action-card-heading">
+                    <span className="category-chip">{c.destination}</span>
+                    <span className={"state-pill " + c.state}>{c.state}</span>
+                  </div>
+                  <h3>{c.title}</h3>
+                  <blockquote>{c.excerpt}</blockquote>
+                  {c.due && (
+                    <p className="muted">
+                      <Clock size={14} /> {new Date(c.due).toLocaleString()}
+                    </p>
+                  )}
+                  <div className="actions">
+                    <button
+                      className="outline"
+                      onClick={() => {
+                        setFolder("Inbox");
+                        setSelectedId(c.threadId);
+                      }}
+                    >
+                      View source email
+                    </button>
+                    {c.state === "proposed" && (
+                      <>
+                        <button
+                          className="primary"
+                          onClick={() =>
+                            setState((s) => ({
+                              ...s,
+                              commitments: s.commitments.map((v) =>
+                                v.id === c.id ? { ...v, state: "approved" } : v,
+                              ),
+                            }))
+                          }
+                        >
+                          Approve proposal
+                        </button>
                         <button
                           className="outline"
-                          onClick={() => {
+                          onClick={() =>
                             setState((s) => ({
                               ...s,
                               commitments: s.commitments.map((v) =>
                                 v.id === c.id
-                                  ? { ...v, state: "completed" }
+                                  ? { ...v, state: "dismissed" }
                                   : v,
                               ),
-                            }));
-                            setNotice(
-                              "Completed in this demo only. No external task was created.",
-                            );
-                          }}
+                            }))
+                          }
                         >
-                          Complete in demo
+                          Dismiss
                         </button>
-                      )}
-                    </div>
-                  </article>
-                ))}
+                      </>
+                    )}
+                    {c.state === "approved" && (
+                      <button
+                        className="outline"
+                        onClick={() => {
+                          setState((s) => ({
+                            ...s,
+                            commitments: s.commitments.map((v) =>
+                              v.id === c.id ? { ...v, state: "completed" } : v,
+                            ),
+                          }));
+                          setNotice(
+                            "Completed in this demo only. No external task was created.",
+                          );
+                        }}
+                      >
+                        Complete in demo
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
             </div>
           ) : (
             <div className={"demo-mail-content " + (selected ? "reading" : "")}>
@@ -886,26 +1117,38 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
                         <select
                           aria-label="Application stage"
                           value={
-                            state.applicationStates[selected.id] || "Exploring"
+                            workspace.opportunities.find(
+                              (o) => o.threadId === selected.id,
+                            )?.stage ||
+                            {
+                              Exploring: "Interested",
+                              Review: "Assessment",
+                              Closed: "Withdrawn",
+                            }[state.applicationStates[selected.id]] ||
+                            state.applicationStates[selected.id] ||
+                            "Interested"
                           }
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const stage = e.target
+                              .value as (typeof applicationStages)[number];
+                            setWorkspace((s) => ({
+                              ...s,
+                              opportunities: s.opportunities.map((o) =>
+                                o.threadId === selected.id
+                                  ? { ...o, stage }
+                                  : o,
+                              ),
+                            }));
                             setState((s) => ({
                               ...s,
                               applicationStates: {
                                 ...s.applicationStates,
-                                [selected.id]: e.target.value,
+                                [selected.id]: stage,
                               },
-                            }))
-                          }
+                            }));
+                          }}
                         >
-                          {[
-                            "Exploring",
-                            "Applied",
-                            "Review",
-                            "Interview",
-                            "Offer",
-                            "Closed",
-                          ].map((v) => (
+                          {applicationStages.map((v) => (
                             <option key={v}>{v}</option>
                           ))}
                         </select>
@@ -940,7 +1183,30 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
                             ? "Message content"
                             : "Earlier message · expand"}
                         </summary>
-                        <pre>{m.body}</pre>
+                        {m.html ? (
+                          <div
+                            className="safe-formatted-message"
+                            dangerouslySetInnerHTML={{
+                              __html: DOMPurify.sanitize(m.html, {
+                                ALLOWED_TAGS: [
+                                  "p",
+                                  "div",
+                                  "br",
+                                  "strong",
+                                  "b",
+                                  "em",
+                                  "i",
+                                  "ul",
+                                  "ol",
+                                  "li",
+                                ],
+                                ALLOWED_ATTR: [],
+                              }),
+                            }}
+                          />
+                        ) : (
+                          <pre>{m.body}</pre>
+                        )}
                       </details>
                       {m.attachments.map((a) => (
                         <button
@@ -988,6 +1254,19 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
                       <Sparkles size={16} /> Demo summary
                     </button>
                   </div>
+                  {inlineKind && inlineDraft && (
+                    <InlineReply
+                      key={selected.id + "-" + inlineKind}
+                      identity={DEMO_IDENTITY}
+                      kind={inlineKind}
+                      initial={inlineDraft}
+                      onChange={inlineChanged}
+                      onKind={(k) => openInline(selected, k)}
+                      onSend={inlineSend}
+                      onClose={() => setInlineKind(null)}
+                      simulated
+                    />
+                  )}
                   {suggestion && (
                     <div className="ai-output">
                       <strong>Simulated assistant · no model call</strong>
@@ -1136,6 +1415,7 @@ export default function DemoMailbox({ onExit }: { onExit: () => void }) {
                   )
                 ) {
                   setState(seedDemo());
+                  setWorkspace(seedWorkspace());
                   setSelectedId(null);
                   setNotice("Demo reset to its original fictional messages.");
                   setSettings(false);

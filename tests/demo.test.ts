@@ -8,11 +8,11 @@ import {
   runScheduled,
 } from "../lib/demo/model";
 import { configurationStatus } from "../lib/config";
-test("demo seeds 52 fictional messages across folders with conversations and safe attachments", () => {
+test("demo seeds 56 fictional messages across folders with conversations and safe attachments", () => {
   const s = seedDemo();
   assert.equal(
     s.threads.reduce((n, t) => n + t.messages.length, 0),
-    52,
+    56,
   );
   for (const folder of [
     "Inbox",
@@ -74,11 +74,11 @@ test("malformed or outdated browser storage safely restores fictional defaults",
       applicationStates: {},
     }),
   ])
-    assert.equal(restoreDemo(v).threads.length, 42);
+    assert.equal(restoreDemo(v).threads.length, 46);
 });
 test("configuration diagnostics expose names and statuses, never server secret values", () => {
   const s = configurationStatus({
-    NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
+    NEXT_PUBLIC_SUPABASE_URL: "https://grlbuiemvkmaflogryta.supabase.co",
     NEXT_PUBLIC_SUPABASE_ANON_KEY: "public",
     SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
     GMAIL_CLIENT_SECRET: "gmail-client-secret",

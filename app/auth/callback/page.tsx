@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { createClient, type EmailOtpType } from "@supabase/supabase-js";
+import { type EmailOtpType } from "@supabase/supabase-js";
+import { browserSupabase } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
 export default function AuthCallback() {
   const [message, setMessage] = useState("Completing your secure sign-in…"),
@@ -24,10 +25,9 @@ export default function AuthCallback() {
         if (!r.ok) throw new Error("Unable to load sign-in configuration.");
         const config = await r.json();
         if (!config.publicAuth) throw new Error(config.auth.message);
-        const client = createClient(
+        const client = browserSupabase(
           config.publicAuth.url,
-          config.publicAuth.anonKey,
-          { auth: { flowType: "pkce", detectSessionInUrl: false } },
+          config.publicAuth.publishableKey || config.publicAuth.anonKey,
         );
         let error;
         if (code) ({ error } = await client.auth.exchangeCodeForSession(code));

@@ -1,6 +1,7 @@
 "use client";
+import { browserSupabase } from "@/lib/supabase/browser";
 import { useEffect, useState, useRef } from "react";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { type SupabaseClient } from "@supabase/supabase-js";
 import {
   Mail,
   Search,
@@ -21,6 +22,13 @@ import {
   ChevronRight,
   Command,
 } from "lucide-react";
+import InlineReply from "./InlineReply";
+import LiveWorkspaceGate from "./workspace/LiveWorkspaceGate";
+import {
+  replyRecipients,
+  type ReplyKind,
+  type ReplyDraft,
+} from "@/lib/mail/reply-types";
 import { Brand } from "./Brand";
 import type { Message } from "@/lib/providers";
 export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
@@ -59,6 +67,20 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
     [draftId, setDraftId] = useState(""),
     [unreadOnly, setUnreadOnly] = useState(false),
     [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [inlineKind, setInlineKind] = useState<ReplyKind | null>(null),
+    [inlineDraft, setInlineDraft] = useState<ReplyDraft | null>(null),
+    [inlineSaved, setInlineSaved] = useState("Draft ready");
+  const inlineIds = useRef(new Map<string, string>()),
+    pendingInlineSave = useRef<(() => void) | null>(null);
+  const inlineId = useRef(""),
+    inlineKey = useRef(""),
+    inlineTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
+    inlineSaveChain = useRef<Promise<void>>(Promise.resolve()),
+    inlineVersion = useRef(0);
+  const [emailRequested, setEmailRequested] = useState(false),
+    [otp, setOtp] = useState("");
+  const [preferencesReady, setPreferencesReady] = useState(false);
+  const lastPreference = useRef<string | null>(null);
   const sendKey = useRef("");
   const activeToken = useRef(token);
   activeToken.current = token;
@@ -101,10 +123,9 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
           history.replaceState(null, "", "/");
         }
         if (config.publicAuth) {
-          const client = createClient(
+          const client = browserSupabase(
             config.publicAuth.url,
-            config.publicAuth.anonKey,
-            { auth: { flowType: "pkce", detectSessionInUrl: false } },
+            config.publicAuth.publishableKey || config.publicAuth.anonKey,
           );
           setSupabase(client);
           const { data, error } = await client.auth.getSession();
@@ -148,7 +169,8 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        ...(path.startsWith("/api/mail") && body
+        ...((path.startsWith("/api/mail") || path.startsWith("/api/replies")) &&
+        body
           ? { "Idempotency-Key": sendKey.current }
           : {}),
       },
@@ -205,7 +227,30 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
         ? "Sign-in email could not be sent: " + error.message
         : "Sign-in link requested. Check your inbox and spam folder, then open the link in this browser.",
     );
+    if (!error) setEmailRequested(true);
     setLoading(false);
+  }
+  async function verifyCode() {
+    if (!supabase) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: "email",
+      });
+      if (error || !data.session)
+        throw new Error(
+          "Code was not accepted or has expired. Request a new email.",
+        );
+      setNotice("Signed in to the dedicated Syrka Mail workspace.");
+      setOtp("");
+      setEmailRequested(false);
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
   async function send() {
     setLoading(true);
@@ -275,6 +320,182 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
       await loadAccounts();
     } catch (e) {
       setNotice((e as Error).message);
+    }
+  }
+  function flushInlineSave() {
+    clearTimeout(inlineTimer.current);
+    const save = pendingInlineSave.current;
+    pendingInlineSave.current = null;
+    save?.();
+  }
+  useEffect(() => () => flushInlineSave(), [account, selected?.id]);
+  useEffect(() => {
+    let active = true;
+    setPreferencesReady(false);
+    lastPreference.current = null;
+    if (token)
+      api("/api/preferences")
+        .then((d) => {
+          if (!active) return;
+          if (d.preferences?.theme) {
+            lastPreference.current = d.preferences.theme;
+            setDark(d.preferences.theme === "dark");
+          }
+          setPreferencesReady(true);
+        })
+        .catch((e) => {
+          if (active)
+            setNotice("Private preferences could not be loaded: " + e.message);
+        });
+    return () => {
+      active = false;
+    };
+  }, [token]);
+  useEffect(() => {
+    if (!token || !preferencesReady) return;
+    const theme = dark ? "dark" : "light";
+    if (lastPreference.current === theme) return;
+    const timer = setTimeout(() => {
+      api("/api/preferences", { theme }, "PUT")
+        .then(() => {
+          lastPreference.current = theme;
+        })
+        .catch((e) =>
+          setNotice(
+            "Theme saved on this device; private sync failed: " + e.message,
+          ),
+        );
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [dark, token, preferencesReady]);
+  async function startInline(kind: ReplyKind) {
+    flushInlineSave();
+    if (!selected) return;
+    const version = ++inlineVersion.current;
+    const contextKey = account + ":" + selected.id + ":" + kind;
+    const owner = accounts.find((a) => a.id === account);
+    const values = replyRecipients(selected, owner?.address || "", kind);
+    const initial: ReplyDraft = {
+      ...values,
+      bcc: "",
+      subject:
+        kind === "forward" ? "Fwd: " + selected.subject : selected.subject,
+      text:
+        kind === "forward"
+          ? "\n\n---------- Forwarded message ----------\n" +
+            selected.from +
+            "\n" +
+            selected.text
+          : "",
+      html: "",
+      attachments: [],
+    };
+    inlineId.current = "";
+    inlineKey.current = crypto.randomUUID();
+    setInlineSaved("Restoring draft…");
+    try {
+      const d = await api(
+        "/api/drafts?" + new URLSearchParams({ account, source: selected.id }),
+      );
+      if (version !== inlineVersion.current) return;
+      const saved = d.drafts.find((v: any) => v.reply_context?.kind === kind);
+      if (saved) {
+        inlineId.current = saved.id;
+        inlineIds.current.set(contextKey, saved.id);
+        Object.assign(initial, {
+          to: saved.to,
+          cc: saved.cc || "",
+          bcc: saved.bcc || "",
+          text: saved.text,
+          html: saved.html || "",
+          attachments: saved.attachments || [],
+        });
+      }
+      setInlineDraft(initial);
+      setInlineKind(kind);
+      setInlineSaved(saved ? "Draft restored" : "Draft ready");
+    } catch (e) {
+      setNotice((e as Error).message);
+      setInlineSaved("Draft restore failed");
+    }
+  }
+  function changeInline(d: ReplyDraft) {
+    if (!selected || !inlineKind) return;
+    setInlineDraft(d);
+    setInlineSaved("Saving…");
+    const contextKey = account + ":" + selected.id + ":" + inlineKind;
+    const version = inlineVersion.current;
+    const context = {
+      accountId: account,
+      sourceMessageId: selected.id,
+      kind: inlineKind,
+    };
+    const save = () => {
+      inlineSaveChain.current = inlineSaveChain.current
+        .catch(() => {})
+        .then(async () => {
+          try {
+            const value = await api("/api/drafts", {
+              ...(inlineIds.current.get(contextKey)
+                ? { id: inlineIds.current.get(contextKey) }
+                : {}),
+              to: d.to,
+              cc: d.cc,
+              bcc: d.bcc,
+              subject: d.subject,
+              text: d.text,
+              html: d.html,
+              attachments: d.attachments,
+              reply_context: context,
+            });
+            inlineIds.current.set(contextKey, value.draft.id);
+            if (version === inlineVersion.current) {
+              inlineId.current = value.draft.id;
+              setInlineSaved("Draft saved");
+            }
+          } catch (e) {
+            setInlineSaved("Not saved");
+            setNotice((e as Error).message);
+          }
+        });
+    };
+    clearTimeout(inlineTimer.current);
+    pendingInlineSave.current = save;
+    inlineTimer.current = setTimeout(() => {
+      pendingInlineSave.current = null;
+      save();
+    }, 500);
+  }
+  async function sendInline(d: ReplyDraft) {
+    if (!selected || !inlineKind) return;
+    flushInlineSave();
+    await inlineSaveChain.current;
+    setLoading(true);
+    sendKey.current = inlineKey.current;
+    try {
+      await api("/api/replies?" + new URLSearchParams({ account }), {
+        ...d,
+        sourceMessageId: selected.id,
+        kind: inlineKind,
+        ...(inlineIds.current.get(
+          account + ":" + selected.id + ":" + inlineKind,
+        )
+          ? {
+              draftId: inlineIds.current.get(
+                account + ":" + selected.id + ":" + inlineKind,
+              ),
+            }
+          : {}),
+      });
+      setInlineKind(null);
+      setInlineDraft(null);
+      inlineId.current = "";
+      setNotice(
+        "Provider accepted your reply. Refresh Sent to verify delivery.",
+      );
+      await refresh();
+    } finally {
+      setLoading(false);
     }
   }
   async function saveDraft() {
@@ -408,6 +629,9 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
   useEffect(() => {
     mailRequest.current++;
     messageRequest.current++;
+    inlineVersion.current++;
+    setInlineKind(null);
+    setInlineDraft(null);
     setMessages([]);
     setSelected(null);
     setNextCursor(undefined);
@@ -584,7 +808,15 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
           </div>
         </footer>
       </aside>
-      <main inert={compose || settings}>
+      <main
+        className={
+          (selected ? "has-open-thread " : "") +
+          (["Calendar", "Academic", "Applications"].includes(folder)
+            ? "task-workspace"
+            : "")
+        }
+        inert={compose || settings}
+      >
         <header>
           <div className="breadcrumb">
             Workspace <ChevronRight size={13} /> <strong>Mail</strong>
@@ -684,9 +916,9 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
             <span>YOUR CONVERSATIONS</span>
             <span>{filtered.length} messages</span>
           </div>
-          {["My Commitments", "Applications", "Academic", "Calendar"].includes(
-            folder,
-          ) ? (
+          {["Applications", "Academic", "Calendar"].includes(folder) ? (
+            <LiveWorkspaceGate view={folder} onDemo={onDemo} />
+          ) : folder === "My Commitments" ? (
             <div className="commitment-feed">
               <h2>Your approved next steps</h2>
               <p className="muted">
@@ -813,23 +1045,29 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
                     </button>
                   </>
                 )}
-                <button
-                  className="outline"
-                  onClick={() => {
-                    setDraft({
-                      cc: "",
-                      bcc: "",
-                      to:
-                        selected.from.match(/<([^>]+)>/)?.[1] || selected.from,
-                      subject: `Re: ${selected.subject}`,
-                      text: "",
-                    });
-                    sendKey.current = crypto.randomUUID();
-                    setCompose(true);
-                  }}
-                >
-                  Reply
-                </button>
+                {(["reply", "all", "forward"] as const).map((kind) => (
+                  <button
+                    key={kind}
+                    className="outline"
+                    disabled={
+                      accounts.find((a) => a.id === account)?.provider ===
+                      "zoho"
+                    }
+                    title={
+                      accounts.find((a) => a.id === account)?.provider ===
+                      "zoho"
+                        ? "Native Zoho threading is awaiting API contract verification"
+                        : undefined
+                    }
+                    onClick={() => startInline(kind)}
+                  >
+                    {kind === "reply"
+                      ? "Reply"
+                      : kind === "all"
+                        ? "Reply all"
+                        : "Forward"}
+                  </button>
+                ))}
                 <button
                   className="outline"
                   disabled={loading || !configuration?.ai.enabled}
@@ -850,6 +1088,26 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
                   Propose action
                 </button>
               </div>
+              {inlineKind && inlineDraft && (
+                <InlineReply
+                  key={selected.id + "-" + inlineKind}
+                  identity={
+                    accounts.find((a) => a.id === account)?.address ||
+                    "Selected account"
+                  }
+                  kind={inlineKind}
+                  initial={inlineDraft}
+                  onChange={changeInline}
+                  onKind={startInline}
+                  onSend={sendInline}
+                  onClose={() => {
+                    flushInlineSave();
+                    setInlineKind(null);
+                  }}
+                  saved={inlineSaved}
+                  busy={loading}
+                />
+              )}
               {!configuration?.ai.enabled && (
                 <p className="muted ai-disabled-note">
                   Live Qwen is unavailable until the model, credentials and
@@ -1053,6 +1311,11 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
                   Requires a connected provider. Sending occurs only when you
                   press Send.
                 </small>
+                {notice && (
+                  <p className="notice" role="status">
+                    {notice}
+                  </p>
+                )}
               </>
             ) : (
               <>
@@ -1081,6 +1344,33 @@ export default function LiveMailbox({ onDemo }: { onDemo: () => void }) {
                 >
                   Send sign-in link <ArrowUpRight size={16} />
                 </button>
+                {emailRequested && !signedIn && (
+                  <div className="email-code-entry">
+                    <p className="muted">
+                      Open the link in this browser. If your email contains a
+                      verification code, you can enter it here instead.
+                    </p>
+                    <label>
+                      Email verification code
+                      <input
+                        aria-label="Email verification code"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        value={otp}
+                        onChange={(e) =>
+                          setOtp(e.target.value.replace(/\D/g, "").slice(0, 10))
+                        }
+                      />
+                    </label>
+                    <button
+                      className="outline"
+                      disabled={loading || !/^\d{6,10}$/.test(otp)}
+                      onClick={verifyCode}
+                    >
+                      Verify email code
+                    </button>
+                  </div>
+                )}
                 {signedIn && (
                   <button
                     className="outline"

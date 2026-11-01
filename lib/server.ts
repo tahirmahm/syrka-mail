@@ -1,11 +1,13 @@
+import { publicSupabaseConfig } from "./supabase/config";
 import { createClient } from "@supabase/supabase-js";
 import type { Connection } from "./providers";
 import { decrypt, encrypt } from "./crypto";
 import { oauthConfig } from "./oauth";
 export function database() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase is not configured");
+  const { url } = publicSupabaseConfig();
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  if (!key) throw new Error("Supabase server key is not configured");
   return createClient(url, key, { auth: { persistSession: false } });
 }
 export async function authenticated(req: Request) {
@@ -82,4 +84,18 @@ export function failure(e: unknown) {
         ? 429
         : 400;
   return Response.json({ error: message }, { status });
+}
+
+/** User-owned operations use the user's JWT and RLS, not service-role bypass. */
+export async function userAuthenticated(req: Request) {
+  const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
+  if (!token) throw new Error("Sign in required");
+  const { url, key } = publicSupabaseConfig();
+  const db = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: "Bearer " + token } },
+  });
+  const { data, error } = await db.auth.getUser(token);
+  if (error || !data.user) throw new Error("Sign in required");
+  return { db, user: data.user };
 }

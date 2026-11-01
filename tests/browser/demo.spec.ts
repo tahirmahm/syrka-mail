@@ -26,12 +26,14 @@ test("demo is populated, visually labelled and sends no live mail or AI requests
   const external: string[] = [];
   page.on("request", (r) => {
     if (
-      /\/api\/(mail|messages|ai|oauth|actions|connections|drafts)/.test(r.url())
+      /\/api\/(mail|messages|replies|ai|oauth|actions|connections|drafts|preferences)/.test(
+        r.url(),
+      )
     )
       external.push(r.url());
   });
   await enter(page);
-  await expect(page.getByText("52 fictional messages")).toBeVisible();
+  await expect(page.getByText("56 fictional messages")).toBeVisible();
   expect(await page.locator(".demo-row").count()).toBeGreaterThan(20);
   await page.screenshot({ path: "artifacts/demo-light.png", fullPage: true });
   await firstThread(page, "Thesis proposal");
@@ -132,23 +134,22 @@ test("reply-all preserves conversation and forwarding opens an editable draft", 
   await enter(page);
   await firstThread(page, "Thesis proposal");
   await page.getByRole("button", { name: "Reply all", exact: true }).click();
+  await page.locator(".recipient-summary").click();
   await expect(
-    page.getByRole("textbox", { name: "CC", exact: true }),
+    page.getByRole("textbox", { name: "Reply CC", exact: true }),
   ).toHaveValue("sam@mail.example");
   await page
-    .getByRole("textbox", { name: "Message", exact: true })
+    .getByRole("textbox", { name: "Reply message", exact: true })
     .fill("My simulated response");
-  await page
-    .getByRole("button", { name: "Simulate send", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Send in demo", exact: true }).click();
   await expect(page.locator(".conversation-message")).toHaveCount(3);
   await page.getByRole("button", { name: "Forward", exact: true }).click();
+  await expect(page.locator(".inline-recipient-details")).toContainText(
+    "Subject: Fwd:",
+  );
   await expect(
-    page.getByRole("textbox", { name: "Subject", exact: true }),
-  ).toHaveValue(/^Fwd:/);
-  await expect(
-    page.getByRole("textbox", { name: "Message", exact: true }),
-  ).toHaveValue(/Forwarded fictional message/);
+    page.getByRole("textbox", { name: "Reply message" }),
+  ).toContainText("Forwarded fictional message");
   await page.keyboard.press("Escape");
   await expect(page.locator(".conversation-message")).toHaveCount(3);
 });
@@ -210,7 +211,7 @@ test("scheduled simulations can be cancelled and reset restores the demo", async
     .click();
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Reset demo", exact: true }).click();
-  await expect(page.getByText("52 fictional messages")).toBeVisible();
+  await expect(page.getByText("56 fictional messages")).toBeVisible();
 });
 test("mobile navigation, thread and composer remain usable without horizontal overflow", async ({
   page,
@@ -233,12 +234,19 @@ test("mobile navigation, thread and composer remain usable without horizontal ov
     fullPage: true,
   });
   await page.getByRole("button", { name: "Reply", exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Inline reply editor" }),
+  ).toBeVisible();
   await page.screenshot({
     path: "artifacts/demo-compose-mobile.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Close inline reply and keep draft",
+      exact: true,
+    })
+    .click();
   await page.getByRole("button", { name: "Open navigation" }).click();
   await folder(page, "Sent");
   await expect(page.getByRole("heading", { name: "Sent." })).toBeVisible();

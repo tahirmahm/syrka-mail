@@ -14,8 +14,14 @@ export interface Message {
   date: string;
   unread: boolean;
   attachments?: Attachment[];
+  threadId?: string;
+  internetMessageId?: string;
+  references?: string;
+  to?: string[];
+  cc?: string[];
 }
 export interface Connection {
+  id?: string;
   provider: Provider;
   access_token: string;
   api_domain?: string;
@@ -187,6 +193,11 @@ export function gmailMessage(v: any): Message {
   }
   collect(v.payload);
   return {
+    threadId: v.threadId,
+    internetMessageId: h("message-id"),
+    references: h("references"),
+    to: h("to").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [],
+    cc: h("cc").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [],
     attachments,
     id: v.id,
     subject: h("subject"),
@@ -246,7 +257,9 @@ export function validateDraft(d: any) {
     all.flatMap(recipients).length > 50 ||
     all
       .flatMap(recipients)
-      .some((x) => !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x))
+      .some(
+        (x) => x.length > 254 || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x),
+      )
   )
     throw new Error("Use up to 50 valid comma-separated recipient addresses");
 }
